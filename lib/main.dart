@@ -44,7 +44,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
 
   Future<void> _addSubscription() async {
     if (_serviceController.text.isEmpty ||
-        _priceController.text.isEmpty) return;
+        _priceController.text.isEmpty) {return;}
 
     final newItem =
         '${_serviceController.text} / ${_priceController.text}';
