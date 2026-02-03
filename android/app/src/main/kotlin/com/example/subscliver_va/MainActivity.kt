@@ -1,4 +1,4 @@
-package com.example.my_app
+package com.example.subscliver_va
 
 import io.flutter.embedding.android.FlutterActivity
 
