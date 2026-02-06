@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>サブスク管理</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      padding: 40px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    h1 {
+      margin: 0;
+    }
+    button {
+      padding: 8px 14px;
+      border: none;
+      background: #3498db;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: 5px;
+    }
+    button.danger {
+      background: #e74c3c;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    .summary {
+      background: #fff;
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-top: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      font-size: 18px;
+    }
+    .chart-box {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      background: #fff;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background: #f0f0f0;
+      text-align: left;
+    }
+    .form-box {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .form-box h3 {
+      margin-top: 0;
+    }
+    .form-box input, .form-box select {
+      padding: 8px;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>サブスク管理画面</h1>
+    <button class="danger" onclick="logout()">ログアウト</button>
+    <a href="pie-chart.html" class="button">📊 円グラフを見る</a>
+  </header>
+
+  <!-- 月額合計表示 -->
+  <div class="summary">
+    月額合計金額：<strong id="monthlyTotal">¥0</strong>
+  </div>
+
+  <!-- グラフ表示 -->
+  <div class="chart-box">
+    <canvas id="subscriptionChart"></canvas>
+  </div>
+
+  <!-- 追加 / 編集フォーム -->
+  <div class="form-box">
+    <h3 id="formTitle">サブスクを追加</h3>
+    <input type="text" id="service" placeholder="サービス名">
+    <input type="number" id="price" placeholder="料金" min="0">
+    <select id="cycle">
+      <option value="月額">月額</option>
+      <option value="年額">年額</option>
+    </select>
+    <input type="date" id="nextBilling">
+    <button onclick="saveSubscription()">保存</button>
+    <button onclick="resetForm()">キャンセル</button>
+  </div>
+
+  <!-- サブスク一覧 -->
+  <table>
+    <thead>
+      <tr>
+        <th>サービス名</th>
+        <th>料金</th>
+        <th>周期</th>
+        <th>次回請求日</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="subscriptionTable"></tbody>
+  </table>
+
+  <script>
+    // ログインチェック
+    if (localStorage.getItem("loggedIn") !== "true") {
+      window.location.href = "login.html";
+    }
+
+    let subscriptions = JSON.parse(localStorage.getItem("subscriptions")) || [
+      { service: "Netflix", price: 990, cycle: "月額", nextBilling: "2026-03-01" },
+      { service: "Spotify", price: 980, cycle: "月額", nextBilling: "2026-02-15" }
+    ];
+
+    let editIndex = null;
+    let chart = null;
+
+    function renderTable() {
+      const tbody = document.getElementById("subscriptionTable");
+      tbody.innerHTML = "";
+
+      subscriptions.forEach((sub, index) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${sub.service}</td>
+          <td>¥${sub.price}</td>
+          <td>${sub.cycle}</td>
+          <td>${sub.nextBilling}</td>
+          <td>
+            <button onclick="editSubscription(${index})">編集</button>
+            <button class="danger" onclick="deleteSubscription(${index})">削除</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      localStorage.setItem("subscriptions", JSON.stringify(subscriptions));
+      updateMonthlyTotal();
+      updateChart();
+    }
+
+    function updateMonthlyTotal() {
+      let total = 0;
+      subscriptions.forEach(sub => {
+        if (sub.cycle === "月額") {
+          total += sub.price;
+        } else if (sub.cycle === "年額") {
+          total += sub.price / 12;
+        }
+      });
+      document.getElementById("monthlyTotal").textContent = "¥" + Math.round(total);
+    }
+
+    function getChartData() {
+      const labels = [];
+      const data = [];
+
+      subscriptions.forEach(sub => {
+        labels.push(sub.service);
+        if (sub.cycle === "月額") {
+          data.push(sub.price);
+        } else {
+          data.push(Math.round(sub.price / 12));
+        }
+      });
+
+      return { labels, data };
+    }
+
+    function updateChart() {
+      const ctx = document.getElementById("subscriptionChart").getContext("2d");
+      const chartData = getChartData();
+
+      if (chart) {
+        chart.destroy();
+      }
+
+      chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: chartData.labels,
+          datasets: [{
+            label: "月額コスト（円）",
+            data: chartData.data
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: value => "¥" + value
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function saveSubscription() {
+      const service = document.getElementById("service").value.trim();
+      const price = document.getElementById("price").value;
+      const cycle = document.getElementById("cycle").value;
+      const nextBilling = document.getElementById("nextBilling").value;
+
+      if (!service || !price || !nextBilling) {
+        alert("すべての項目を入力してください");
+        return;
+      }
+
+      const newSub = { service, price: Number(price), cycle, nextBilling };
+
+      if (editIndex === null) {
+        subscriptions.push(newSub);
+      } else {
+        subscriptions[editIndex] = newSub;
+        editIndex = null;
+      }
+
+      resetForm();
+      renderTable();
+    }
+
+    function editSubscription(index) {
+      const sub = subscriptions[index];
+      document.getElementById("service").value = sub.service;
+      document.getElementById("price").value = sub.price;
+      document.getElementById("cycle").value = sub.cycle;
+      document.getElementById("nextBilling").value = sub.nextBilling;
+
+      document.getElementById("formTitle").textContent = "サブスクを編集";
+      editIndex = index;
+    }
+
+    function deleteSubscription(index) {
+      if (confirm("本当に削除しますか？")) {
+        subscriptions.splice(index, 1);
+        renderTable();
+      }
+    }
+
+    function resetForm() {
+      document.getElementById("service").value = "";
+      document.getElementById("price").value = "";
+      document.getElementById("cycle").value = "月額";
+      document.getElementById("nextBilling").value = "";
+      document.getElementById("formTitle").textContent = "サブスクを追加";
+      editIndex = null;
+    }
+
+    function logout() {
+      localStorage.removeItem("loggedIn");
+      window.location.href = "login.html";
+    }
+
+    // 初期表示
+    renderTable();
+  </script>
+
+</body>
+</html>

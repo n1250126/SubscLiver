@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>サブスク円グラフ</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      padding: 40px;
+      text-align: center;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    h1 {
+      margin: 0;
+    }
+    a.button {
+      text-decoration: none;
+      padding: 8px 14px;
+      background: #3498db;
+      color: #fff;
+      border-radius: 4px;
+    }
+    .chart-box {
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      max-width: 600px;
+      margin: 40px auto;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>サブスク費用の割合</h1>
+    <a href="subscriptions.html" class="button">← 管理画面に戻る</a>
+  </header>
+
+  <div class="chart-box">
+    <canvas id="pieChart"></canvas>
+  </div>
+
+  <script>
+    // ログインチェック
+    if (localStorage.getItem("loggedIn") !== "true") {
+      window.location.href = "login.html";
+    }
+
+    const subscriptions = JSON.parse(localStorage.getItem("subscriptions")) || [];
+
+    const labels = [];
+    const data = [];
+
+    subscriptions.forEach(sub => {
+      labels.push(sub.service);
+      if (sub.cycle === "月額") {
+        data.push(sub.price);
+      } else {
+        data.push(Math.round(sub.price / 12));
+      }
+    });
+
+    const ctx = document.getElementById("pieChart").getContext("2d");
+    new Chart(ctx, {
+      type: "pie",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "月額コスト（円）",
+          data: data
+        }]
+      },
+      options: {
+        responsive: true
+      }
+    });
+  </script>
+
+</body>
+</html>
