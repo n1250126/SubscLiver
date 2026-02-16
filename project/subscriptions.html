@@ -2,163 +2,428 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>サブスク管理</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* 基本スタイル (共通) */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f0f2f5;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      font-size: 24px;
+      color: #202124;
+      margin: 0;
+    }
+
+    .header-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    /* カードデザイン */
+    .card {
+      background-color: #fff;
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      margin-bottom: 24px;
+    }
+
+    /* 合計金額表示 */
+    .summary-section {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .total-label { font-size: 14px; color: #666; }
+    .total-amount { font-size: 32px; font-weight: bold; color: #1a73e8; margin: 8px 0; }
+
+    .chart-container {
+      position: relative;
+      height: 300px;
+      width: 100%;
+    }
+
+    /* チップ・入力フォーム */
+    .chips-label { font-size: 13px; color: #666; margin-bottom: 8px; font-weight: bold; }
+    .chips-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .chip {
+      background-color: #e8f0fe; color: #1a73e8; border: none; border-radius: 20px;
+      padding: 6px 14px; font-size: 13px; cursor: pointer; transition: background-color 0.2s, transform 0.1s; font-weight: 500;
+    }
+    .chip:hover { background-color: #d2e3fc; }
+    .chip:active { transform: scale(0.95); }
+
+    .input-group { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    input, select { padding: 10px; border: 1px solid #dadce0; border-radius: 4px; font-size: 14px; flex: 1; min-width: 120px; }
+    input:focus, select:focus { border-color: #1a73e8; outline: none; }
+
+    /* ボタン類 */
+    button { padding: 10px 16px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px; transition: background-color 0.2s; }
+    .btn-save { background-color: #1a73e8; color: white; width: 100%; }
+    .btn-save:hover { background-color: #1557b0; }
+    .btn-logout { background-color: #fff; color: #d93025; border: 1px solid #d93025; }
+    .btn-logout:hover { background-color: #fce8e6; }
+    .btn-notify { background-color: #fff; color: #fbbc04; border: 1px solid #fbbc04; }
+    .btn-notify:hover { background-color: #fff8e1; }
+    
+    .btn-edit { background-color: #f1f3f4; color: #333; margin-right: 5px; }
+    .btn-edit:hover { background-color: #e8eaed; }
+    .btn-del { background-color: #fce8e6; color: #d93025; }
+    .btn-del:hover { background-color: #fad2cf; }
+
+    /* テーブル */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th { text-align: left; font-size: 13px; color: #666; border-bottom: 2px solid #f0f2f5; padding: 12px 8px; }
+    td { padding: 12px 8px; border-bottom: 1px solid #f0f2f5; font-size: 14px; }
+    .text-right { text-align: right; }
+    
+    /* 期限間近のアラート表示 */
+    .alert-date {
+      color: #d93025; /* 赤文字 */
+      font-weight: bold;
+    }
+    .warning-icon {
+      margin-right: 4px;
+    }
+
+    .chart-link { display: inline-block; margin-top: 10px; color: #1a73e8; text-decoration: none; font-size: 14px; }
+    .chart-link:hover { text-decoration: underline; }
+  </style>
 </head>
 <body>
-  <h1>サブスク管理</h1>
-  <button onclick="logout()">ログアウト</button>
-  <a href="pie-chart.html">📊 円グラフを見る</a>
 
-  <h3>月額合計：<span id="total">¥0</span></h3>
-  <canvas id="chart"style="max-width: 400px; max-height: 300px;"></canvas>
+<div class="container">
+  <header>
+    <h1>サブスク管理</h1>
+    <div class="header-buttons">
+      <button id="btn-notify" class="btn-notify">🔔 通知ON</button>
+      <button id="btn-logout" class="btn-logout">ログアウト</button>
+    </div>
+  </header>
 
-  <h3>追加 / 編集</h3>
-  <input id="service" placeholder="サービス名">
-  <input id="price" type="number" placeholder="料金">
-  <select id="cycle">
-    <option>月額</option>
-    <option>年額</option>
-  </select>
-  <input id="nextBilling" type="date">
-  <button onclick="save()">保存</button>
+  <div class="card">
+    <div class="summary-section">
+      <div class="total-label">月額合計コスト</div>
+      <div id="total" class="total-amount">¥0</div>
+      <a href="pie-chart.html" class="chart-link">📊 円グラフで内訳を見る</a>
+    </div>
+    <div class="chart-container">
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
 
-  <table border="1">
-    <thead>
-      <tr>
-        <th>サービス</th>
-        <th>料金</th>
-        <th>周期</th>
-        <th>次回請求</th>
-        <th>操作</th>
-      </tr>
-    </thead>
-    <tbody id="tbody"></tbody>
-  </table>
+  <div class="card">
+    <h3 style="margin-top: 0; margin-bottom: 16px;">サービスの追加 / 編集</h3>
+    
+    <div class="chips-label">よく使うサービスを選択:</div>
+    <div class="chips-container">
+      <button class="chip" onclick="setService('YouTube Premium')">YouTube Premium</button>
+      <button class="chip" onclick="setService('Netflix')">Netflix</button>
+      <button class="chip" onclick="setService('Amazon Prime')">Amazon Prime</button>
+      <button class="chip" onclick="setService('Spotify')">Spotify</button>
+      <button class="chip" onclick="setService('Apple Music')">Apple Music</button>
+      <button class="chip" onclick="setService('Disney+')">Disney+</button>
+      <button class="chip" onclick="setService('DAZN')">DAZN</button>
+      <button class="chip" onclick="setService('ChatGPT Plus')">ChatGPT Plus</button>
+    </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import {
-      getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where
-    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    <div class="input-group">
+      <input id="service" type="text" placeholder="サービス名">
+      <input id="price" type="number" placeholder="料金 (円)" min="0">
+      <select id="cycle">
+        <option value="月額">月額</option>
+        <option value="年額">年額</option>
+      </select>
+      <input id="nextBilling" type="date">
+    </div>
+    <button id="btn-save" class="btn-save">保存する</button>
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyAHqUmo2O6uKvaczMah4W02KZOLeoXo0SE",
-  authDomain: "login-ceef8.firebaseapp.com",
-  projectId: "login-ceef8",
-  storageBucket: "login-ceef8.firebasestorage.app",
-  messagingSenderId: "65863828111",
-  appId: "1:65863828111:web:a0f98efedc50313747a6fa",
-  //measurementId: "G-NQRD5JYY7B"
-};
+    <h3 style="margin-top: 32px; margin-bottom: 16px;">登録済みサービス</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>サービス</th>
+          <th>料金</th>
+          <th>周期</th>
+          <th>次回請求</th>
+          <th class="text-right">操作</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+  import {
+    getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where
+  } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-    let subs = [];
-    let editId = null;
-    let chart;
+  const firebaseConfig = {
+    apiKey: "AIzaSyAHqUmo2O6uKvaczMah4W02KZOLeoXo0SE",
+    authDomain: "login-ceef8.firebaseapp.com",
+    projectId: "login-ceef8",
+    storageBucket: "login-ceef8.firebasestorage.app",
+    messagingSenderId: "65863828111",
+    appId: "1:65863828111:web:a0f98efedc50313747a6fa",
+  };
 
-    onAuthStateChanged(auth, user => {
-      if (!user) {
-        location.href = "login.html";
-      } else {
-        fetchSubs(user.uid);
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let subs = [];
+  let editId = null;
+  let chart;
+
+  onAuthStateChanged(auth, user => {
+    if (!user) {
+      location.href = "login.html";
+    } else {
+      fetchSubs(user.uid);
+    }
+  });
+
+  async function fetchSubs(uid) {
+    const q = query(collection(db, "subscriptions"), where("userId", "==", uid));
+    const snapshot = await getDocs(q);
+    subs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    render();
+    checkBillingNotifications(); // データ取得後に通知チェックを実行
+  }
+
+  function render() {
+    const tbody = document.getElementById("tbody");
+    tbody.innerHTML = "";
+    let total = 0;
+    const today = new Date();
+    today.setHours(0,0,0,0); // 時間をリセットして日付比較用にする
+
+    subs.forEach(s => {
+      // 次回請求日の計算ロジック
+      let dateDisplay = '-';
+      let isNear = false;
+      let daysLeft = null;
+
+      if (s.nextBilling) {
+        const billingDate = new Date(s.nextBilling);
+        billingDate.setHours(0,0,0,0);
+        
+        const diffTime = billingDate - today;
+        daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+        dateDisplay = s.nextBilling;
+
+        // 7日以内、かつ過去の日付でない場合警告
+        if (daysLeft >= 0 && daysLeft <= 7) {
+          isNear = true;
+          dateDisplay = `<span class="alert-date">⚠️ ${s.nextBilling} (あと${daysLeft}日)</span>`;
+        } else if (daysLeft < 0) {
+           // 過ぎている場合
+           dateDisplay = `<span style="color:#999">${s.nextBilling} (過ぎています)</span>`;
+        }
       }
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${s.service}</td>
+        <td>¥${s.price.toLocaleString()}</td>
+        <td>${s.cycle}</td>
+        <td>${dateDisplay}</td>
+        <td class="text-right">
+          <button class="btn-edit" onclick="edit('${s.id}')">編集</button>
+          <button class="btn-del" onclick="del('${s.id}')">削除</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+
+      total += s.cycle === "月額" ? Number(s.price) : Number(s.price) / 12;
     });
 
-    async function fetchSubs(uid) {
-      const q = query(collection(db, "subscriptions"), where("userId", "==", uid));
-      const snapshot = await getDocs(q);
-      subs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      render();
+    total = Math.round(total);
+    document.getElementById("total").textContent = "¥" + total.toLocaleString();
+    drawChart();
+  }
+
+  // --- 通知機能 ---
+  
+  // 1. 通知許可を求める
+  async function requestNotificationPermission() {
+    if (!("Notification" in window)) {
+      alert("このブラウザは通知に対応していません。");
+      return;
+    }
+    
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      alert("通知がオンになりました！請求日が近づくとお知らせします。");
+      checkBillingNotifications(); // 許可直後にもチェック
+    } else {
+      alert("通知が拒否されました。");
+    }
+  }
+
+  // 2. 日付をチェックして通知を出す
+  function checkBillingNotifications() {
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+      return;
     }
 
-    function render() {
-      tbody.innerHTML = "";
-      let total = 0;
+    const today = new Date();
+    today.setHours(0,0,0,0);
 
-      subs.forEach(s => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${s.service}</td>
-          <td>¥${s.price}</td>
-          <td>${s.cycle}</td>
-          <td>${s.nextBilling}</td>
-          <td>
-            <button onclick="edit('${s.id}')">編集</button>
-            <button onclick="del('${s.id}')">削除</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
+    subs.forEach(s => {
+      if (!s.nextBilling) return;
+      
+      const billingDate = new Date(s.nextBilling);
+      billingDate.setHours(0,0,0,0);
+      
+      const diffTime = billingDate - today;
+      const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        total += s.cycle === "月額" ? s.price : s.price / 12;
-      });
+      // 7日以内なら通知
+      if (daysLeft >= 0 && daysLeft <= 7) {
+        new Notification("支払日が近づいています 💸", {
+          body: `${s.service}の支払日が${daysLeft === 0 ? '今日' : 'あと' + daysLeft + '日後'}です。`,
+          icon: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" // お金のアイコン例
+        });
+      }
+    });
+  }
 
-      total = Math.round(total);
-      document.getElementById("total").textContent = "¥" + total;
-      drawChart();
+  function drawChart() {
+    const labels = subs.map(s => s.service);
+    const data = subs.map(s => s.cycle === "月額" ? s.price : Math.round(s.price / 12));
+
+    if (chart) chart.destroy();
+    
+    const ctx = document.getElementById("chart").getContext('2d');
+    chart = new Chart(ctx, {
+      type: "bar",
+      data: { 
+        labels, 
+        datasets: [{ 
+          label: "月額換算コスト", 
+          data,
+          backgroundColor: '#4285F4',
+          borderRadius: 4
+        }] 
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  }
+
+  async function save() {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const serviceInput = document.getElementById('service');
+    const priceInput = document.getElementById('price');
+    const cycleInput = document.getElementById('cycle');
+    const nextBillingInput = document.getElementById('nextBilling');
+
+    if (Number(priceInput.value) < 0) {
+      alert("料金は0以上の数値を入力してください。");
+      return;
     }
 
-    function drawChart() {
-      const labels = subs.map(s => s.service);
-      const data = subs.map(s => s.cycle === "月額" ? s.price : Math.round(s.price / 12));
-
-      if (chart) chart.destroy();
-      chart = new Chart(document.getElementById("chart"), {
-        type: "bar",
-        data: { labels, datasets: [{ label: "月額コスト", data }] }
-      });
+    if(!serviceInput.value || !priceInput.value) {
+      alert("サービス名と料金を入力してください");
+      return;
     }
 
-    async function save() {
-      const user = auth.currentUser;
-      if (!user) return;
+    const body = {
+      userId: user.uid,
+      service: serviceInput.value,
+      price: Number(priceInput.value),
+      cycle: cycleInput.value,
+      nextBilling: nextBillingInput.value
+    };
 
-      const body = {
-        userId: user.uid,
-        service: service.value,
-        price: Number(price.value),
-        cycle: cycle.value,
-        nextBilling: nextBilling.value
-      };
-
+    try {
       if (editId) {
         await updateDoc(doc(db, "subscriptions", editId), body);
       } else {
         await addDoc(collection(db, "subscriptions"), body);
       }
-
+      
+      serviceInput.value = "";
+      priceInput.value = "";
+      nextBillingInput.value = "";
       editId = null;
+      document.getElementById('btn-save').textContent = "保存する";
+
       fetchSubs(user.uid);
+    } catch (e) {
+      console.error("Error adding document: ", e);
+      alert("エラーが発生しました");
     }
+  }
 
-    function edit(id) {
-      const s = subs.find(x => x.id === id);
-      service.value = s.service;
-      price.value = s.price;
-      cycle.value = s.cycle;
-      nextBilling.value = s.nextBilling;
-      editId = id;
-    }
+  function edit(id) {
+    const s = subs.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('service').value = s.service;
+    document.getElementById('price').value = s.price;
+    document.getElementById('cycle').value = s.cycle;
+    document.getElementById('nextBilling').value = s.nextBilling;
+    
+    editId = id;
+    document.getElementById('btn-save').textContent = "更新する";
+    
+    document.querySelector('.input-group').scrollIntoView({behavior: "smooth"});
+  }
 
-    async function del(id) {
-      await deleteDoc(doc(db, "subscriptions", id));
-      fetchSubs(auth.currentUser.uid);
-    }
+  async function del(id) {
+    if(!confirm("本当に削除しますか？")) return;
+    await deleteDoc(doc(db, "subscriptions", id));
+    fetchSubs(auth.currentUser.uid);
+  }
 
-    async function logout() {
-      await signOut(auth);
-      location.href = "login.html";
-    }
+  async function logout() {
+    await signOut(auth);
+    location.href = "login.html";
+  }
 
-    window.save = save;
-    window.edit = edit;
-    window.del = del;
-    window.logout = logout;
-  </script>
+  function setService(name) {
+    document.getElementById('service').value = name;
+  }
+
+  // イベントリスナー
+  document.getElementById('btn-save').addEventListener('click', save);
+  document.getElementById('btn-logout').addEventListener('click', logout);
+  document.getElementById('btn-notify').addEventListener('click', requestNotificationPermission); // 通知許可ボタン
+
+  window.edit = edit;
+  window.del = del;
+  window.setService = setService;
+
+</script>
 </body>
 </html>

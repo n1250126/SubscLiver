@@ -2,44 +2,185 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>新規登録</title>
+  <style>
+    /* login.html と共通の基本デザイン */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      color: #333;
+    }
+
+    /* カードコンテナ */
+    .register-container {
+      background-color: #ffffff;
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      width: 100%;
+      max-width: 400px;
+      box-sizing: border-box;
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 24px;
+      font-size: 24px;
+      color: #202124;
+    }
+
+    /* 入力フォーム */
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 16px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 16px;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      border-color: #1a73e8;
+      outline: none;
+    }
+
+    /* 登録ボタン（青色） */
+    .primary-btn {
+      width: 100%;
+      padding: 12px;
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      margin-bottom: 16px;
+    }
+
+    .primary-btn:hover {
+      background-color: #1557b0;
+    }
+
+    /* リンクとメッセージ */
+    .login-link {
+      display: block;
+      margin-top: 10px;
+      font-size: 14px;
+      color: #1a73e8;
+      text-decoration: none;
+    }
+    
+    .login-link:hover {
+      text-decoration: underline;
+    }
+
+    #msg {
+      margin-top: 10px;
+      font-size: 14px;
+      min-height: 20px;
+    }
+    
+    .success-msg {
+      color: #34A853; /* 緑色 */
+    }
+    
+    .error-msg {
+      color: #d93025; /* 赤色 */
+    }
+  </style>
 </head>
 <body>
-  <h2>新規登録</h2>
-  <input id="email" type="email" placeholder="メールアドレス">
-  <input id="password" type="password" placeholder="パスワード">
-  <button onclick="register()">登録</button>
-  <p id="msg"></p>
-  <a href="login.html">ログインへ戻る</a>
+  <div class="register-container">
+    <h2>新規登録</h2>
+    <p style="font-size: 14px; color: #666; margin-bottom: 20px;">メールアドレスでアカウントを作成します</p>
+
+    <input id="email" type="email" placeholder="メールアドレス">
+    <input id="password" type="password" placeholder="パスワード（6文字以上）">
+    
+    <button id="btn-register" class="primary-btn">登録する</button>
+
+    <p id="msg"></p>
+    
+    <a href="login.html" class="login-link">すでにアカウントをお持ちの方はこちら</a>
+  </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
-   // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyAHqUmo2O6uKvaczMah4W02KZOLeoXo0SE",
-  authDomain: "login-ceef8.firebaseapp.com",
-  projectId: "login-ceef8",
-  storageBucket: "login-ceef8.firebasestorage.app",
-  messagingSenderId: "65863828111",
-  appId: "1:65863828111:web:a0f98efedc50313747a6fa",
-  //measurementId: "G-NQRD5JYY7B"
-};
+    const firebaseConfig = {
+      apiKey: "AIzaSyAHqUmo2O6uKvaczMah4W02KZOLeoXo0SE",
+      authDomain: "login-ceef8.firebaseapp.com",
+      projectId: "login-ceef8",
+      storageBucket: "login-ceef8.firebasestorage.app",
+      messagingSenderId: "65863828111",
+      appId: "1:65863828111:web:a0f98efedc50313747a6fa",
+    };
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
 
     async function register() {
+      const emailVal = document.getElementById('email').value;
+      const passwordVal = document.getElementById('password').value;
+      const msgElement = document.getElementById('msg');
+      
+      msgElement.textContent = "";
+      msgElement.className = ""; // クラスをリセット
+
+      if (!emailVal || !passwordVal) {
+        msgElement.textContent = "メールアドレスとパスワードを入力してください。";
+        msgElement.className = "error-msg";
+        return;
+      }
+
+      if (passwordVal.length < 6) {
+        msgElement.textContent = "パスワードは6文字以上で設定してください。";
+        msgElement.className = "error-msg";
+        return;
+      }
+
       try {
-        await createUserWithEmailAndPassword(auth, email.value, password.value);
-        msg.textContent = "登録成功！ログインしてください。";
+        await createUserWithEmailAndPassword(auth, emailVal, passwordVal);
+        
+        msgElement.textContent = "登録成功！ログインページへ移動します...";
+        msgElement.className = "success-msg";
+        
+        // 1.5秒後にログインページへ自動遷移
+        setTimeout(() => {
+          location.href = "login.html";
+        }, 1500);
+
       } catch (err) {
-        msg.textContent = err.message;
+        console.error(err);
+        msgElement.className = "error-msg";
+        
+        if (err.code === 'auth/email-already-in-use') {
+          msgElement.textContent = "このメールアドレスは既に登録されています。";
+        } else if (err.code === 'auth/invalid-email') {
+          msgElement.textContent = "メールアドレスの形式が正しくありません。";
+        } else if (err.code === 'auth/weak-password') {
+          msgElement.textContent = "パスワードが脆弱です。6文字以上で設定してください。";
+        } else {
+          msgElement.textContent = "登録エラー: " + err.message;
+        }
       }
     }
 
-    window.register = register;
+    // イベントリスナーの設定（ReferenceError回避）
+    document.getElementById('btn-register').addEventListener('click', register);
+
   </script>
 </body>
 </html>
