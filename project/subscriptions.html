@@ -364,6 +364,20 @@
       return;
     }
 
+    // 請求日未入力チェック
+    if (!nextBillingInput.value) {
+      alert("請求日を入力してください。");
+      return;
+    }
+
+// 存在する日付かチェック
+const billingDate = new Date(nextBillingInput.value);
+
+  if (isNaN(billingDate.getTime())) {
+    alert("存在しない日付です。");
+    return;
+  }
+
     const body = {
       userId: user.uid,
       service: serviceInput.value,
