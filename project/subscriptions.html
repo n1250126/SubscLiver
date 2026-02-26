@@ -354,6 +354,11 @@
       return;
     }
 
+    if (Number(priceInput.value) >1000000) {
+      alert("料金は1,000,000以下の数値を入力してください。");
+      return;
+    }
+
     if(!serviceInput.value || !priceInput.value) {
       alert("サービス名と料金を入力してください");
       return;
