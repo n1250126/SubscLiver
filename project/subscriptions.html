@@ -198,6 +198,12 @@
   let editId = null;
   let chart;
 
+  // --- 通知ON/OFF状態（保存付き） ---
+  let notificationsEnabled = localStorage.getItem("notifyEnabled") === "true";
+
+  // 初期ボタン表示更新
+updateNotifyButton();
+
   onAuthStateChanged(auth, user => {
     if (!user) {
       location.href = "login.html";
@@ -266,6 +272,17 @@
     document.getElementById("total").textContent = "¥" + total.toLocaleString();
     drawChart();
   }
+  
+  function updateNotifyButton() {
+  const btn = document.getElementById("btn-notify");
+  if (notificationsEnabled) {
+    btn.textContent = "🔔 通知ON";
+    btn.style.backgroundColor = "#fff";
+  } else {
+    btn.textContent = "🔕 通知OFF";
+    btn.style.backgroundColor = "#eee";
+  }
+}
 
   // --- 通知機能 ---
   
@@ -287,9 +304,13 @@
 
   // 2. 日付をチェックして通知を出す
   function checkBillingNotifications() {
-    if (!("Notification" in window) || Notification.permission !== "granted") {
-      return;
-    }
+  if (
+    !notificationsEnabled ||
+    !("Notification" in window) ||
+    Notification.permission !== "granted"
+  ) {
+    return;
+  }
 
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -305,7 +326,7 @@
 
       // 7日以内なら通知
       if (daysLeft >= 0 && daysLeft <= 7) {
-        new Notification("支払日が近づいています 💸", {
+        new Notification("本当に払うの～？？？その金でベンツ買えたかもしれないのにな～？ 💸", {
           body: `${s.service}の支払日が${daysLeft === 0 ? '今日' : 'あと' + daysLeft + '日後'}です。`,
           icon: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" // お金のアイコン例
         });
@@ -419,7 +440,23 @@
   // イベントリスナー
   document.getElementById('btn-save').addEventListener('click', save);
   document.getElementById('btn-logout').addEventListener('click', logout);
-  document.getElementById('btn-notify').addEventListener('click', requestNotificationPermission); // 通知許可ボタン
+ document.getElementById('btn-notify').addEventListener('click', async () => {
+
+  if (!notificationsEnabled) {
+    // OFF → ON にする場合
+    await requestNotificationPermission();
+    if (Notification.permission === "granted") {
+      notificationsEnabled = true;
+      localStorage.setItem("notifyEnabled", "true");
+    }
+  } else {
+    // ON → OFF にする場合
+    notificationsEnabled = false;
+    localStorage.setItem("notifyEnabled", "false");
+  }
+
+  updateNotifyButton();
+});
 
   window.edit = edit;
   window.del = del;
@@ -427,4 +464,4 @@
 
 </script>
 </body>
-</html>
+</html> 
