@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>サブスク管理</title>
+  <title>Subsc Liver</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     /* 基本スタイル (共通) */
@@ -212,10 +212,54 @@ updateNotifyButton();
     }
   });
 
-  async function fetchSubs(uid) {
+async function fetchSubs(uid) {
     const q = query(collection(db, "subscriptions"), where("userId", "==", uid));
     const snapshot = await getDocs(q);
     subs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // --- 次回請求日の自動更新ロジックここから ---
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let s of subs) {
+      if (!s.nextBilling) continue;
+      
+      let billingDate = new Date(s.nextBilling);
+      billingDate.setHours(0, 0, 0, 0);
+      
+      let diffTime = billingDate - today;
+      let daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      // 残り0日以下（今日、または過ぎている場合）に自動更新
+      if (daysLeft < 0) {
+        // 現在の日付より未来になるまで周期（月額/年額）を足す
+        while (daysLeft < 0) {
+          if (s.cycle === "月額") {
+            billingDate.setMonth(billingDate.getMonth() + 1);
+          } else if (s.cycle === "年額") {
+            billingDate.setFullYear(billingDate.getFullYear() + 1);
+          } else {
+            break; // 想定外の周期の場合ループを抜ける
+          }
+          diffTime = billingDate - today;
+          daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        // 新しい日付を yyyy-mm-dd 形式にフォーマット
+        const year = billingDate.getFullYear();
+        const month = String(billingDate.getMonth() + 1).padStart(2, '0');
+        const day = String(billingDate.getDate()).padStart(2, '0');
+        const newDateStr = `${year}-${month}-${day}`;
+
+        // Firestore のデータベースを更新
+        await updateDoc(doc(db, "subscriptions", s.id), { nextBilling: newDateStr });
+        
+        // 画面表示用のローカルデータも更新
+        s.nextBilling = newDateStr;
+      }
+    }
+    // --- 次回請求日の自動更新ロジックここまで ---
+
     render();
     checkBillingNotifications(); // データ取得後に通知チェックを実行
   }
