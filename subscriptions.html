@@ -206,7 +206,7 @@ updateNotifyButton();
 
   onAuthStateChanged(auth, user => {
     if (!user) {
-      location.href = "login.html";
+      location.href = "index.html";
     } else {
       fetchSubs(user.uid);
     }
@@ -493,7 +493,7 @@ const billingDate = new Date(nextBillingInput.value);
 
   async function logout() {
     await signOut(auth);
-    location.href = "login.html";
+    location.href = "index.html";
   }
 
   function setService(name) {
